@@ -47,11 +47,12 @@ class BTSolver:
     """
     def forwardChecking ( self ):
         for variable in self.network.variables:
-            if variable.isModified():
+            if variable.isAssigned():
                 for neighbor in self.network.getNeighborsOfVariable(variable):
                     if variable.getAssignment() == neighbor.getAssignment():
                         return False
                     if not neighbor.isAssigned():
+                        self.trail.push(neighbor)
                         neighbor.removeValueFromDomain(variable.getAssignment())
                         if neighbor.size() == 0:
                             return False
