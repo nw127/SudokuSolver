@@ -51,7 +51,7 @@ class BTSolver:
                 for neighbor in self.network.getNeighborsOfVariable(variable):
                     if variable.getAssignment() == neighbor.getAssignment():
                         return False
-                    if not neighbor.isAssigned():
+                    if not neighbor.isAssigned() and variable.getAssignment() in neighbor.getValues():
                         self.trail.push(neighbor)
                         neighbor.removeValueFromDomain(variable.getAssignment())
                         if neighbor.size() == 0:
@@ -60,6 +60,7 @@ class BTSolver:
                         for c in self.network.getModifiedConstraints():
                             if not c.isConsistent():
                                 return False
+                        
         return True
 
     """
@@ -116,6 +117,21 @@ class BTSolver:
                     v = variable
                     m = variable.size()
         return v
+        """
+        d = {k:0 for k in self.network.variables if not k.isAssigned()}
+        for k in d:
+            count = 0
+            for neighbor in self.network.getNeighborsOfVariable(k):
+                if not neighbor.isAssigned():
+                    count += 1
+            d[k] = count
+        r = [(k,v) for k,v in sorted(d.items(), key=lambda item: item[0].size(), reverse=False)]
+        r.sort(key=lambda item: item[1], reverse=False)
+        if len(r) > 0:
+            return r[0][0]
+        else:
+            return None
+        """
 
     """
         Part 2 TODO: Implement the Degree Heuristic
