@@ -42,7 +42,7 @@ class BTSolver:
         (1) If a variable is assigned then eliminate that value from
             the square's neighbors.
 
-        Note: remember to trail.push variables before you assign them
+		Note: remember to trail.push variables before you change their domain
         Return: true is assignment is consistent, false otherwise
     """
     def forwardChecking ( self ):
@@ -75,11 +75,51 @@ class BTSolver:
         (2) If a constraint has only one possible place for a value
             then put the value there.
 
-        Note: remember to trail.push variables before you assign them
+        Note: remember to trail.push variables before you change their domain
         Return: true is assignment is consistent, false otherwise
+        
+        For each Unit in {rows, cols, blocks*}
+            Zero Counter
+            For I from 1 to N
+                For each Value in DUnit[I]
+                    Increment Counter[Value]
+            For I from 1 to N
+                If (Counter[I] = 1) then
+                    Find the one domain in Unit that has I for a possible value,
+                    and set that cell to I
     """
     def norvigCheck ( self ):
-        return False
+        for variable in self.network.variables:
+            if variable.isAssigned():
+                for neighbor in self.network.getNeighborsOfVariable(variable):
+                    if variable.getAssignment() == neighbor.getAssignment():
+                        return False
+                    if not neighbor.isAssigned() and variable.getAssignment() in neighbor.getValues():
+                        self.trail.push(neighbor)
+                        neighbor.removeValueFromDomain(variable.getAssignment())
+                        if neighbor.size() == 0:
+                            return False
+                        
+                        for c in self.network.getModifiedConstraints():
+                            if not c.isConsistent():
+                                return False
+                            
+        n = self.gameboard.p*self.gameboard.q
+        for c in self.network.getConstraints():
+            counter = [0 for i in range(n)]
+            for i in range(n):
+                for value in c.vars[i].getValues():
+                    counter[value-1] += 1
+            for i in range(n):
+                if counter[i] == 1:
+                    for variable in c.vars:
+                        if variable.getDomain().contains(i+1):
+                            variable.assignValue(i+1)
+                            
+                            for constraint in self.network.getModifiedConstraints():
+                                if not constraint.isConsistent():
+                                    return False
+        return True
 
     """
          Optional TODO: Implement your own advanced Constraint Propagation
@@ -117,21 +157,6 @@ class BTSolver:
                     v = variable
                     m = variable.size()
         return v
-        """
-        d = {k:0 for k in self.network.variables if not k.isAssigned()}
-        for k in d:
-            count = 0
-            for neighbor in self.network.getNeighborsOfVariable(k):
-                if not neighbor.isAssigned():
-                    count += 1
-            d[k] = count
-        r = [(k,v) for k,v in sorted(d.items(), key=lambda item: item[0].size(), reverse=False)]
-        r.sort(key=lambda item: item[1], reverse=False)
-        if len(r) > 0:
-            return r[0][0]
-        else:
-            return None
-        """
 
     """
         Part 2 TODO: Implement the Degree Heuristic
@@ -139,7 +164,18 @@ class BTSolver:
         Return: The unassigned variable with the most unassigned neighbors
     """
     def getDegree ( self ):
-        return None
+        v = None
+        m = float("-inf")
+        for variable in self.network.variables:
+            if not variable.isAssigned():
+                unassigned = 0
+                for neighbor in self.network.getNeighborsOfVariable(variable):
+                    if not neighbor.isAssigned():
+                        unassigned += 1
+                if unassigned > m:
+                    m = unassigned
+                    v = variable
+        return v
 
     """
         Part 2 TODO: Implement the Minimum Remaining Value Heuristic
@@ -149,7 +185,23 @@ class BTSolver:
                 and, second, the most unassigned neighbors
     """
     def MRVwithTieBreaker ( self ):
-        return None
+        v = None
+        domain = float("inf")
+        degree = float("-inf")
+        for variable in self.network.variables:
+            if not variable.isAssigned():
+                unassigned = 0
+                for neighbor in self.network.getNeighborsOfVariable(variable):
+                    if not neighbor.isAssigned():
+                        unassigned += 1
+                if variable.size() == domain and unassigned > degree:
+                    v = variable
+                    degree = unassigned
+                elif variable.size() < domain:
+                    v  = variable
+                    degree = unassigned
+                    
+        return v
 
     """
          Optional TODO: Implement your own advanced Variable Heuristic
@@ -179,6 +231,7 @@ class BTSolver:
                 The LCV is first and the MCV is last
     """
     def getValuesLCVOrder ( self, v ):
+
         valuesDict = {k:0 for k in v.getValues()}
         for neighbor in self.network.getNeighborsOfVariable(v):
             if not neighbor.isAssigned():
